@@ -1,0 +1,27 @@
+# 1. Security: Never copy secrets
+.env
+.env.*
+*.pem
+*.key
+
+# 2. Build & Temp Files
+tmp/
+/gateway/tmp/
+/auth/tmp/
+/server
+/main
+*.exe
+*.log
+
+# 3. Docker & Version Control
+docker-compose*.yml
+.dockerignore
+.air.toml
+.git
+.gitignore
+.github/
+
+# 4. IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
