@@ -2,7 +2,10 @@ module github.com/moneymate-2026/moneymate-backend/auth
 
 go 1.26.4
 
-require github.com/spf13/viper v1.21.0
+require (
+	github.com/moneymate-2026/moneymate-backend/shared v0.0.0-20260707102250-15585fa3c09e
+	github.com/spf13/viper v1.21.0
+)
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -15,6 +18,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 )

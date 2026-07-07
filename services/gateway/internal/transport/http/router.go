@@ -5,7 +5,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	
-	// Update this specific line!
+	"github.com/moneymate-2026/moneymate-backend/gateway/internal/middlewares"
 	"github.com/moneymate-2026/moneymate-backend/gateway/internal/proxy"
 )
 
@@ -15,10 +15,9 @@ type Router struct {
 }
 
 func NewRouter(auth proxy.AuthClient) *Router {
-	// Optimize Fiber for mechanical sympathy
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
-		Prefork:               false, // Enable in prod for multi-core socket listening
+		Prefork:               false, 
 		ReduceMemoryUsage:     true,
 	})
 
@@ -34,23 +33,21 @@ func NewRouter(auth proxy.AuthClient) *Router {
 func (r *Router) SetupRoutes() {
 	api := r.app.Group("/api/v1")
 
-	// Health check for load balancers
+	// Public Route: Health check for load balancers
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
-	// Example route using the abstract AuthClient
-	api.Get("/verify-test", func(c *fiber.Ctx) error {
-		token := c.Get("Authorization")
-		
-		// Call the interface (currently mocked, later gRPC)
-		userID, err := r.authClient.VerifyToken(c.Context(), token)
-		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
-		}
+	// Public Routes: Auth endpoints (Login/Register stubs)
+	authGroup := api.Group("/auth")
+	authGroup.Post("/login", r.handleLogin())
+	authGroup.Post("/register", r.handleRegister())
 
-		return c.JSON(fiber.Map{"user_id": userID})
-	})
+	// --- PROTECTED ROUTES ---
+	// We apply the RequireAuth middleware here. Any route added to 'secure' MUST have a valid token.
+	secure := api.Group("/secure", middlewares.RequireAuth(r.authClient))
+	
+	secure.Get("/profile", r.handleProfile())
 }
 
 func (r *Router) Listen(addr string) error {
@@ -59,4 +56,33 @@ func (r *Router) Listen(addr string) error {
 
 func (r *Router) Shutdown() error {
 	return r.app.Shutdown()
+}
+
+// --- Handler Implementations ---
+
+func (r *Router) handleLogin() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "login pending gRPC contract"})
+	}
+}
+
+func (r *Router) handleRegister() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "register pending gRPC contract"})
+	}
+}
+
+func (r *Router) handleProfile() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Extract the user ID that the middleware securely placed in context
+		userID := c.Locals("user_id").(string)
+		
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"success": true,
+			"message": "Secure profile accessed",
+			"data": fiber.Map{
+				"user_id": userID,
+			},
+		})
+	}
 }
