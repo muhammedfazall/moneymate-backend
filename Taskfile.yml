@@ -130,6 +130,11 @@ tasks:
     dir: services/auth
     cmd: go mod tidy
 
+  tidy:shared:
+    desc: "Run go mod tidy for shared packages"
+    dir: ./shared
+    cmd: go mod tidy
+
   tidy:gateway:
     desc: "Run go mod tidy for gateway service"
     dir: services/gateway
@@ -140,6 +145,7 @@ tasks:
     cmds:
       - task: tidy:auth
       - task: tidy:gateway
+      - task: tidy:shared
 
   help:
     desc: "List all available tasks"
