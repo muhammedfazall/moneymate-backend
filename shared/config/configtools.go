@@ -1,10 +1,10 @@
 package sharedconfig
 
 import (
-    "log"
-    "os"
+	"log"
+	"os"
 
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 func Load(path string) {
@@ -28,3 +28,4 @@ func Get(key, fallback string) string {
     }
     return val
 }
+

@@ -87,10 +87,6 @@ func (u *authUsecase) Register(ctx context.Context, req RegisterRequest) (*Regis
 	if len(req.Password) < 8 {
 		return nil, apperrors.ErrInvalidInput
 	}
-	// AccountType must be set by the HANDLER based on which app/route the
-	// request came through (web -> merchant, mobile -> user) — never trust
-	// this from the request body itself, or any client could self-assign
-	// the merchant role.
 	if req.AccountType != domain.AccountTypeUser && req.AccountType != domain.AccountTypeMerchant {
 		return nil, apperrors.ErrInvalidInput
 	}
@@ -115,10 +111,6 @@ func (u *authUsecase) Register(ctx context.Context, req RegisterRequest) (*Regis
 		return nil, apperrors.ErrPhoneAlreadyTaken
 	}
 
-	// Gate: must have completed OTP verification for this email.
-	// NOTE: this consumes the flag before the DB transaction runs. If the
-	// transaction below fails, the user loses verified status and has to
-	// re-request an OTP. Accepted tradeoff for now.
 	verified, err := u.store.ConsumeEmailVerified(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("consume email verified: %w", err)
@@ -197,7 +189,6 @@ func (u *authUsecase) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	user, err := u.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if err == apperrors.ErrUserNotFound {
-			// Don't leak whether the account exists.
 			return nil, apperrors.ErrInvalidPassword
 		}
 		return nil, fmt.Errorf("get user: %w", err)
@@ -206,10 +197,6 @@ func (u *authUsecase) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	if user.PasswordHash == nil {
 		return nil, apperrors.ErrInvalidPassword
 	}
-
-	// TODO(tracked gap): no brute-force lockout yet. This is the call site
-	// to wire it into once designed — check/increment a failed-attempt
-	// counter here before/after Verify.
 	ok, err := u.hasher.Verify(*user.PasswordHash, req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("verify password: %w", err)
@@ -217,7 +204,6 @@ func (u *authUsecase) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	if !ok {
 		return nil, apperrors.ErrInvalidPassword
 	}
-
 	if user.Status != domain.UserStatusActive {
 		return nil, apperrors.ErrForbidden
 	}
