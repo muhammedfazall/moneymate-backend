@@ -92,7 +92,7 @@ tasks:
 
   migrate:all:
     desc: "Run migrations for all services"
-    deps: [migrate:auth]       # ← add migrate:core, migrate:merchant later
+    deps: [migrate:auth]     
 
   # ── Code Generation ───────────────────────────────────────────
   sqlc:auth:
