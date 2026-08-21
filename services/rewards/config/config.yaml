@@ -16,5 +16,5 @@ jwt:
 rewards:
   payment_completed_topic: "moneymate.payment.completed"
   consumer_group: "moneymate-rewards-svc"
-  fake_payment_client: true
+  fake_payment_client: false
   payment_service_url: "http://localhost:9094"
