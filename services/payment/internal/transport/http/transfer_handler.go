@@ -65,6 +65,20 @@ func (h *TransferHandler) GetTransaction(c fiber.Ctx) error {
 	return response.OK(c, "transaction found", toTransactionResponse(tx))
 }
 
+func (h *TransferHandler) ResolveHandle(c fiber.Ctx) error {
+	handle := c.Query("handle")
+	if handle == "" {
+		return response.BadRequest(c, nil, "handle is required")
+	}
+
+	res, err := h.transfers.ResolveHandle(c.Context(), handle)
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	return response.OK(c, "handle resolved", res)
+}
+
 func toTransactionResponse(t *domain.Transaction) transactionResponse {
 	return transactionResponse{
 		ID:             t.ID.String(),

@@ -60,3 +60,13 @@ func RequireAuth() fiber.Handler {
 		return c.Next()
 	}
 }
+
+func RequireInternalSecret(expectedSecret string) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		secret := c.Get("X-Internal-Secret")
+		if secret == "" || secret != expectedSecret {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized internal access"})
+		}
+		return c.Next()
+	}
+}

@@ -9,8 +9,8 @@ import (
 
 // Store represents the core merchant entity.
 type Store struct {
-	ID           uuid.UUID
-	Role         string
+	ID                uuid.UUID
+	OwnerID           uuid.UUID
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	OwnerName    string

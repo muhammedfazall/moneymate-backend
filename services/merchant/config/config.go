@@ -24,6 +24,8 @@ type Config struct {
 	Server   ServerConfig `mapstructure:"server"`
 	Database sharedconfig.DatabaseConfig
 	Razorpay RazorpayConfig
+	Kafka    sharedconfig.KafkaConfig
+	InternalServiceSecret string
 }
 
 func LoadConfig() (*Config, error) {
@@ -55,6 +57,8 @@ func LoadConfig() (*Config, error) {
 	cfg.Razorpay.KeyID = sharedconfig.Get("RAZORPAY_KEY_ID", "")
 	cfg.Razorpay.KeySecret = sharedconfig.Get("RAZORPAY_KEY_SECRET", "")
 	cfg.Razorpay.WebhookSecret = sharedconfig.Get("RAZORPAY_WEBHOOK_SECRET", "")
+	cfg.Kafka = sharedconfig.LoadKafkaConfig(v)
+	cfg.InternalServiceSecret = sharedconfig.MustGet("INTERNAL_SERVICE_SECRET")
 
 	return &cfg, nil
 }

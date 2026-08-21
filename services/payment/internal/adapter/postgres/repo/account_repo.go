@@ -165,3 +165,22 @@ func mapDBErr(err error) error {
 	}
 	return fmt.Errorf("db: %w", err)
 }
+
+func (r *AccountRepo) GetSystemAccountByType(ctx context.Context, accountType domain.AccountType) (*domain.Account, error) {
+	row, err := r.q.GetSystemAccountByType(ctx, generated.PaymentAccountType(accountType))
+	if err != nil {
+		return nil, mapDBErr(err)
+	}
+	return rowToAccount(generated.GetAccountByIDRow{
+		ID:         row.ID,
+		UserID:     row.UserID,
+		MerchantID: row.MerchantID,
+		Type:       string(row.Type),
+		Currency:   row.Currency,
+		Balance:    row.Balance,
+		Version:    row.Version,
+		Handle:     row.Handle,
+		CreatedAt:  row.CreatedAt,
+		UpdatedAt:  row.UpdatedAt,
+	}), nil
+}

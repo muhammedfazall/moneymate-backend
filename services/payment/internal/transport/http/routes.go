@@ -4,17 +4,20 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	authclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/authClient"
+	merchantclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/merchantClient"
 	sharedjwt "github.com/moneymate-2026/moneymate-backend/shared/pkg/jwt"
 )
 
-func RegisterRoutes(router fiber.Router, wh *WalletHandler, th *TransferHandler, dh *DepositHandler, wdh *WithdrawalHandler, ch *CategoryHandler, jwtCfg sharedjwt.Config, authClient *authclient.Client, internalSecret string) {	pay := router.Group("/payment", RequireUserID(jwtCfg))
+func RegisterRoutes(router fiber.Router, wh *WalletHandler, th *TransferHandler, sth *SystemTransferHandler, dh *DepositHandler, wdh *WithdrawalHandler, ch *CategoryHandler, jwtCfg sharedjwt.Config, authClient *authclient.Client, merchantClient *merchantclient.Client, internalSecret string) {
+	pay := router.Group("/payment", RequireUserID(jwtCfg))
 
 	pay.Get("/wallets/me", RequireTransactionToken(authClient), wh.GetMyWallet)
 	pay.Get("/wallets/:id", wh.GetWalletByID)
 
 	pay.Post("/transfers", RequireTransactionToken(authClient), th.Transfer)
 	pay.Get("/transactions/:id", th.GetTransaction)
-	
+	pay.Get("/resolve", th.ResolveHandle)
+
 	pay.Post("/categories", ch.Create)
 	pay.Get("/categories", ch.List)
 	pay.Put("/categories/:id", ch.Update)
@@ -30,4 +33,5 @@ func RegisterRoutes(router fiber.Router, wh *WalletHandler, th *TransferHandler,
 	internal := router.Group("/internal", RequireInternalSecret(internalSecret))
 	internal.Post("/payment/wallets", wh.CreateWalletInternal)
 	internal.Post("/payment/wallets/:id/credit-reward", wh.CreditReward)
+	internal.Post("/payment/system-transfer", sth.Transfer)
 }

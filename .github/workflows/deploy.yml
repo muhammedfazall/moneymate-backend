@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth, gateway, merchant, payment, support, notification]
+        service: [auth, gateway, merchant, payment, support, notification, rewards]
     permissions:
       contents: read
       packages: write

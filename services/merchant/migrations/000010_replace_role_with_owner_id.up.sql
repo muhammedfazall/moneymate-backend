@@ -1,0 +1,3 @@
+ALTER TABLE stores DROP COLUMN role;
+ALTER TABLE stores ADD COLUMN owner_id UUID NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE stores ALTER COLUMN owner_id DROP DEFAULT;

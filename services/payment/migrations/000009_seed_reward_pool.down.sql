@@ -1,0 +1,1 @@
+DELETE FROM payment.accounts WHERE type = 'platform_commission_pool';

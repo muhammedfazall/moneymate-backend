@@ -8,7 +8,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/moneymate-2026/moneymate-backend/shared v0.0.0-20260813114436-992632ebc1a2
+	github.com/moneymate-2026/moneymate-backend/shared v0.0.0-20260821045331-f37ecfe8ea1b
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/spf13/viper v1.21.0
 )

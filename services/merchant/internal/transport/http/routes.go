@@ -2,10 +2,11 @@ package http
 
 import (
 	"github.com/gofiber/fiber/v3"
+	"github.com/moneymate-2026/moneymate-backend/services/merchant/internal/transport/http/middleware"
 )
 
 // RegisterRoutes wires all HTTP endpoints for merchant registration, campaigns, rewards center, subscription plans, KYC compliance, and Wallet.
-func RegisterRoutes(router fiber.Router, h *MerchantHandler, ch *CampaignHandler, rh *RewardHandler, sh *SubscriptionHandler, kh *KYCHandler, dh *DashboardHandler, wh *WalletHandler, eh *EarningsHandler, authMiddleware fiber.Handler) {
+func RegisterRoutes(router fiber.Router, h *MerchantHandler, ch *CampaignHandler, rh *RewardHandler, sh *SubscriptionHandler, kh *KYCHandler, dh *DashboardHandler, wh *WalletHandler, eh *EarningsHandler, authMiddleware fiber.Handler, internalSecret string) {
 	merchant := router.Group("/merchant")
 
 	merchant.Get("/health", func(c fiber.Ctx) error {
@@ -14,6 +15,9 @@ func RegisterRoutes(router fiber.Router, h *MerchantHandler, ch *CampaignHandler
 			"service": "merchant",
 		})
 	})
+
+	internal := router.Group("/internal/merchant", middleware.RequireInternalSecret(internalSecret))
+	internal.Get("/stores/:id/profile", h.GetInternalProfile)
 
 	merchant.Post("/register", h.RegisterStore)
 	merchant.Post("/login", h.LoginStore)

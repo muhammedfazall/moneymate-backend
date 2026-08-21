@@ -1,0 +1,2 @@
+ALTER TABLE stores DROP COLUMN owner_id;
+ALTER TABLE stores ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'merchant';

@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
+	// authclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/authClient"
+	// merchantclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/merchantClient"
 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/domain"
 	apperrors "github.com/moneymate-2026/moneymate-backend/shared/pkg/errors"
 )
@@ -25,22 +27,42 @@ type TransferInput struct {
 type TransferUsecase interface {
 	Transfer(ctx context.Context, in TransferInput) (*domain.LedgerResult, error)
 	GetByID(ctx context.Context, id string) (*domain.Transaction, error)
+	ResolveHandle(ctx context.Context, handle string) (*ResolveResult, error)
+}
+
+type AuthClient interface {
+	GetUserProfile(ctx context.Context, userID string) (string, string, error)
+}
+
+type MerchantClient interface {
+	GetStoreProfile(ctx context.Context, storeID string) (string, string, error)
 }
 
 type transferUsecase struct {
-	accounts     domain.AccountRepository
-	transactions domain.TransactionRepository
-	ledger       domain.LedgerRepository
-	categories   domain.CategoryRepository
+	accounts       domain.AccountRepository
+	transactions   domain.TransactionRepository
+	ledger         domain.LedgerRepository
+	categories     domain.CategoryRepository
+	authClient     AuthClient
+	merchantClient MerchantClient
 }
 
 func NewTransferUsecase(
 	accounts domain.AccountRepository,
 	transactions domain.TransactionRepository,
 	ledger domain.LedgerRepository,
-	categories domain.CategoryRepository, // NEW
+	categories domain.CategoryRepository,
+	authClient AuthClient,
+	merchantClient MerchantClient,
 ) TransferUsecase {
-	return &transferUsecase{accounts: accounts, transactions: transactions, ledger: ledger, categories: categories}
+	return &transferUsecase{
+		accounts:       accounts,
+		transactions:   transactions,
+		ledger:         ledger,
+		categories:     categories,
+		authClient:     authClient,
+		merchantClient: merchantClient,
+	}
 }
 func (u *transferUsecase) Transfer(ctx context.Context, in TransferInput) (*domain.LedgerResult, error) {
 	if in.AmountPaise <= 0 {
@@ -165,4 +187,62 @@ func (u *transferUsecase) GetByID(ctx context.Context, id string) (*domain.Trans
 		return nil, apperrors.ErrInvalidInput
 	}
 	return u.transactions.GetByID(ctx, txID)
+}
+
+type ResolveResult struct {
+	AccountID   string `json:"account_id"`
+	Handle      string `json:"handle"`
+	AccountType string `json:"account_type"`
+	DisplayName string `json:"display_name"`
+	PhotoURL    string `json:"photo_url"`
+}
+
+func (u *transferUsecase) ResolveHandle(ctx context.Context, handle string) (*ResolveResult, error) {
+	handle = strings.TrimSpace(handle)
+	if handle == "" {
+		return nil, apperrors.ErrInvalidInput
+	}
+
+	acc, err := u.accounts.GetByHandle(ctx, handle)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrNotFound) {
+			return nil, apperrors.ErrInvalidInput
+		}
+		return nil, err
+	}
+
+	if acc.Type != domain.AccountTypeWallet && acc.Type != domain.AccountTypeMerchantSettlement {
+		return nil, apperrors.ErrInvalidInput
+	}
+
+	handleVal := ""
+	if acc.Handle != nil {
+		handleVal = *acc.Handle
+	}
+
+	res := &ResolveResult{
+		AccountID:   acc.ID.String(),
+		Handle:      handleVal,
+		AccountType: string(acc.Type),
+	}
+
+	if acc.Type == domain.AccountTypeWallet {
+		if u.authClient != nil && acc.UserID != nil {
+			name, photo, err := u.authClient.GetUserProfile(ctx, acc.UserID.String())
+			if err == nil {
+				res.DisplayName = name
+				res.PhotoURL = photo
+			}
+		}
+	} else if acc.Type == domain.AccountTypeMerchantSettlement {
+		if u.merchantClient != nil && acc.MerchantID != nil {
+			name, logo, err := u.merchantClient.GetStoreProfile(ctx, acc.MerchantID.String())
+			if err == nil {
+				res.DisplayName = name
+				res.PhotoURL = logo
+			}
+		}
+	}
+
+	return res, nil
 }

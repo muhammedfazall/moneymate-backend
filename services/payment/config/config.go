@@ -21,6 +21,7 @@ type Config struct {
 	Kafka    sharedconfig.KafkaConfig
 	Razorpay sharedconfig.RazorpayConfig
 	AuthServiceURL        string
+	MerchantServiceURL    string
 	InternalServiceSecret string
 }
 
@@ -50,6 +51,7 @@ func LoadConfig() (*Config, error) {
 	cfg.Env = sharedconfig.Get("ENVIRONMENT", "dev")
 	cfg.Kafka = sharedconfig.LoadKafkaConfig(v)
 	cfg.AuthServiceURL = sharedconfig.Get("AUTH_SERVICE_URL", "http://auth:8081")
+	cfg.MerchantServiceURL = sharedconfig.Get("MERCHANT_SERVICE_URL", "http://merchant:8082")
 	cfg.InternalServiceSecret = sharedconfig.MustGet("INTERNAL_SERVICE_SECRET")
 	return &cfg, nil
 }

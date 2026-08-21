@@ -14,7 +14,7 @@ import (
 
 const createStore = `-- name: CreateStore :one
 INSERT INTO stores (
-    id, role, owner_name, contact_email, mobile_number, 
+    id, owner_id, owner_name, contact_email, mobile_number, 
     legal_name, dba_name, business_type, tax_id, registered_address, display_id, vpa, qr_code_base64, password_hash
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
@@ -23,7 +23,7 @@ INSERT INTO stores (
 
 type CreateStoreParams struct {
 	ID                uuid.UUID
-	Role              string
+	OwnerID           uuid.UUID
 	OwnerName         string
 	ContactEmail      string
 	MobileNumber      string
@@ -51,7 +51,7 @@ type CreateStoreRow struct {
 func (q *Queries) CreateStore(ctx context.Context, arg CreateStoreParams) (CreateStoreRow, error) {
 	row := q.db.QueryRow(ctx, createStore,
 		arg.ID,
-		arg.Role,
+		arg.OwnerID,
 		arg.OwnerName,
 		arg.ContactEmail,
 		arg.MobileNumber,
@@ -128,20 +128,20 @@ func (q *Queries) GetPendingStores(ctx context.Context) ([]GetPendingStoresRow, 
 
 const getStoreByEmail = `-- name: GetStoreByEmail :one
 SELECT 
-    id, display_id, vpa, legal_name, status, plan, password_hash, role
+    id, owner_id, display_id, vpa, legal_name, status, plan, password_hash
 FROM stores
 WHERE contact_email = $1 LIMIT 1
 `
 
 type GetStoreByEmailRow struct {
 	ID           uuid.UUID
+	OwnerID      uuid.UUID
 	DisplayID    string
 	Vpa          *string
 	LegalName    string
 	Status       MerchantStatus
 	Plan         SubscriptionPlan
 	PasswordHash string
-	Role         string
 }
 
 func (q *Queries) GetStoreByEmail(ctx context.Context, contactEmail string) (GetStoreByEmailRow, error) {
@@ -149,13 +149,13 @@ func (q *Queries) GetStoreByEmail(ctx context.Context, contactEmail string) (Get
 	var i GetStoreByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
 		&i.DisplayID,
 		&i.Vpa,
 		&i.LegalName,
 		&i.Status,
 		&i.Plan,
 		&i.PasswordHash,
-		&i.Role,
 	)
 	return i, err
 }

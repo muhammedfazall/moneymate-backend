@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -15,12 +16,14 @@ import (
 
 // StoreUseCase orchestrates merchant workflows.
 type StoreUseCase struct {
-	repo domain.MerchantRepository
+	repo   domain.MerchantRepository
+	outbox domain.OutboxRepository
+	tx     domain.TxManager
 }
 
 // NewStoreUseCase constructs a usecase with repository dependencies.
-func NewStoreUseCase(repo domain.MerchantRepository) *StoreUseCase {
-	return &StoreUseCase{repo: repo}
+func NewStoreUseCase(repo domain.MerchantRepository, outbox domain.OutboxRepository, tx domain.TxManager) *StoreUseCase {
+	return &StoreUseCase{repo: repo, outbox: outbox, tx: tx}
 }
 
 type RegisterStoreInput struct {
@@ -65,7 +68,7 @@ func (uc *StoreUseCase) ProcessRegistration(ctx context.Context, in RegisterStor
 
 	store := &domain.Store{
 		ID:                storeID,
-		Role:              "merchant",
+		OwnerID:           storeID,
 		OwnerName:         strings.TrimSpace(in.OwnerName),
 		ContactEmail:      strings.ToLower(strings.TrimSpace(in.ContactEmail)),
 		MobileNumber:      strings.TrimSpace(in.MobileNumber),
@@ -80,20 +83,52 @@ func (uc *StoreUseCase) ProcessRegistration(ctx context.Context, in RegisterStor
 		PasswordHash:      hashedPwd,
 	}
 
-	createdStore, err := uc.repo.RegisterStore(ctx, store)
+	var createdStore *domain.Store
+	err = uc.tx.WithTx(ctx, func(ctx context.Context) error {
+		var txErr error
+		createdStore, txErr = uc.repo.RegisterStore(ctx, store)
+		if txErr != nil {
+			return fmt.Errorf("failed to register store: %w", txErr)
+		}
+
+		kyc := &domain.KYCDocument{
+			StoreID:        createdStore.ID,
+			AadhaarNumber:  in.AadhaarNumber,
+			AadhaarDocURL:  in.AadhaarDocURL,
+			ShopLicenseURL: in.ShopLicenseURL,
+		}
+
+		if txErr := uc.repo.SubmitKYC(ctx, kyc); txErr != nil {
+			return fmt.Errorf("failed to submit KYC documents: %w", txErr)
+		}
+
+		// Insert outbox event
+		outboxID, txErr := uuid.NewV7()
+		if txErr != nil {
+			return fmt.Errorf("failed to generate outbox ID: %w", txErr)
+		}
+
+		payload, txErr := json.Marshal(map[string]string{
+			"merchant_id": createdStore.ID.String(),
+			"handle":      vpa,
+		})
+		if txErr != nil {
+			return fmt.Errorf("marshal outbox payload: %w", txErr)
+		}
+
+		if txErr := uc.outbox.Insert(ctx, &domain.OutboxEvent{
+			ID:      outboxID,
+			Topic:   "merchant.registered",
+			Payload: payload,
+		}); txErr != nil {
+			return fmt.Errorf("insert outbox event: %w", txErr)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to register store: %w", err)
-	}
-
-	kyc := &domain.KYCDocument{
-		StoreID:        createdStore.ID,
-		AadhaarNumber:  in.AadhaarNumber,
-		AadhaarDocURL:  in.AadhaarDocURL,
-		ShopLicenseURL: in.ShopLicenseURL,
-	}
-
-	if err := uc.repo.SubmitKYC(ctx, kyc); err != nil {
-		return nil, fmt.Errorf("failed to submit KYC documents: %w", err)
+		return nil, err
 	}
 
 	return createdStore, nil
@@ -150,6 +185,10 @@ func generateVPA(email string) string {
 }
 
 // GetPendingStores retrieves all merchants in the pending_kyc status.
+func (uc *StoreUseCase) GetStoreProfile(ctx context.Context, storeID uuid.UUID) (*domain.Store, error) {
+	return uc.repo.GetStoreByID(ctx, storeID)
+}
+
 func (uc *StoreUseCase) GetPendingStores(ctx context.Context) ([]*domain.Store, error) {
 	return uc.repo.GetPendingStores(ctx)
 }

@@ -15,11 +15,14 @@ import (
 	"github.com/moneymate-2026/moneymate-backend/services/merchant/config"
 	"github.com/moneymate-2026/moneymate-backend/services/merchant/internal/adapter/postgres"
 	"github.com/moneymate-2026/moneymate-backend/services/merchant/internal/adapter/postgres/repo"
+	"github.com/moneymate-2026/moneymate-backend/services/merchant/internal/infra/outboxpublisher"
 	transporthttp "github.com/moneymate-2026/moneymate-backend/services/merchant/internal/transport/http"
 	"github.com/moneymate-2026/moneymate-backend/services/merchant/internal/transport/http/middleware"
 	ws "github.com/moneymate-2026/moneymate-backend/services/merchant/internal/transport/websocket"
 	"github.com/moneymate-2026/moneymate-backend/services/merchant/internal/usecases"
+	"github.com/moneymate-2026/moneymate-backend/shared/pkg/kafka"
 	"github.com/moneymate-2026/moneymate-backend/shared/pkg/payment"
+	"github.com/moneymate-2026/moneymate-backend/shared/pkg/pgxtx"
 )
 
 type App struct {
@@ -51,8 +54,10 @@ func Build(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
+	outboxRepo := repo.NewOutboxRepo(pool)
+	txManager := pgxtx.New(pool)
 	storeRepo := repo.NewStoreRepo(pool)
-	storeUseCase := usecases.NewStoreUseCase(storeRepo)
+	storeUseCase := usecases.NewStoreUseCase(storeRepo, outboxRepo, txManager)
 
 	campaignRepo := repo.NewCampaignRepo(pool)
 	campaignUseCase := usecases.NewCampaignUseCase(campaignRepo, storeRepo)
@@ -94,7 +99,19 @@ func Build(cfg *config.Config) (*App, error) {
 	walletHandler := transporthttp.NewWalletHandler(walletUseCase)
 	earningsHandler := transporthttp.NewEarningsHandler(earningsUseCase)
 	adminHandler := transporthttp.NewAdminHandler(adminUseCase)
-	httpServer := setupHTTPServer(httpHandler, campaignHandler, rewardHandler, subscriptionHandler, kycHandler, dashboardHandler, walletHandler, earningsHandler, adminHandler, hub)
+	httpServer := setupHTTPServer(cfg, httpHandler, campaignHandler, rewardHandler, subscriptionHandler, kycHandler, dashboardHandler, walletHandler, earningsHandler, adminHandler, hub)
+
+	producer, err := kafka.NewProducer(kafka.Config{
+		Brokers:  cfg.Kafka.Brokers,
+		Username: cfg.Kafka.Username,
+		Password: cfg.Kafka.Password,
+		CACert:   cfg.Kafka.CACert,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create kafka producer: %w", err)
+	}
+	outboxPub := outboxpublisher.New(outboxRepo, producer)
+	go outboxPub.Run(ctx)
 
 	httpAddr := cfg.Server.HTTPAddr
 	if port := os.Getenv("PORT"); port != "" {
@@ -116,7 +133,7 @@ func Build(cfg *config.Config) (*App, error) {
 }
 
 // setupHTTPServer configures Fiber middleware, CORS policies, health check, and registers all REST routes.
-func setupHTTPServer(handler *transporthttp.MerchantHandler, campaignHandler *transporthttp.CampaignHandler, rewardHandler *transporthttp.RewardHandler, subscriptionHandler *transporthttp.SubscriptionHandler, kycHandler *transporthttp.KYCHandler, dashboardHandler *transporthttp.DashboardHandler, walletHandler *transporthttp.WalletHandler, earningsHandler *transporthttp.EarningsHandler, adminHandler *transporthttp.AdminHandler, hub *ws.Hub) *fiber.App {
+func setupHTTPServer(cfg *config.Config, handler *transporthttp.MerchantHandler, campaignHandler *transporthttp.CampaignHandler, rewardHandler *transporthttp.RewardHandler, subscriptionHandler *transporthttp.SubscriptionHandler, kycHandler *transporthttp.KYCHandler, dashboardHandler *transporthttp.DashboardHandler, walletHandler *transporthttp.WalletHandler, earningsHandler *transporthttp.EarningsHandler, adminHandler *transporthttp.AdminHandler, hub *ws.Hub) *fiber.App {
 	server := fiber.New(fiber.Config{
 		AppName: "merchant-service",
 	})
@@ -137,7 +154,7 @@ func setupHTTPServer(handler *transporthttp.MerchantHandler, campaignHandler *tr
 
 	// Use real auth middleware for merchant routes
 	authMiddleware := middleware.RequireAuth()
-	transporthttp.RegisterRoutes(server, handler, campaignHandler, rewardHandler, subscriptionHandler, kycHandler, dashboardHandler, walletHandler, earningsHandler, authMiddleware)
+	transporthttp.RegisterRoutes(server, handler, campaignHandler, rewardHandler, subscriptionHandler, kycHandler, dashboardHandler, walletHandler, earningsHandler, authMiddleware, cfg.InternalServiceSecret)
 	transporthttp.RegisterAdminRoutes(server, adminHandler, noopAuth)
 	transporthttp.RegisterWebSocketRoutes(server, hub.HandleConnection())
 

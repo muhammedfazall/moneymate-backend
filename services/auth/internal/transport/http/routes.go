@@ -58,6 +58,7 @@ func registerRoleRoutes(router fiber.Router, h *RoleHandler) {
 	roles := router.Group("/admin/roles")
 	roles.Post("", h.CreateRole)
 	roles.Post("/", h.CreateRole)
+	
 	roles.Get("", h.ListRoles)
 	roles.Get("/", h.ListRoles)
 	roles.Get("/:id", h.GetRole)

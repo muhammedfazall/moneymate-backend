@@ -44,4 +44,5 @@ type AccountRepository interface {
  	GetExternalSettlementAccount(ctx context.Context) (*Account, error)
 	CreateRewardPoolAccount(ctx context.Context) (*Account, error)
 	GetRewardPoolAccount(ctx context.Context) (*Account, error)
+	GetSystemAccountByType(ctx context.Context, accountType AccountType) (*Account, error)
 }

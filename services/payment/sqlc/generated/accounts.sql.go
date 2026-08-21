@@ -392,6 +392,29 @@ func (q *Queries) GetRewardPoolAccount(ctx context.Context) (GetRewardPoolAccoun
 	return i, err
 }
 
+const getSystemAccountByType = `-- name: GetSystemAccountByType :one
+SELECT id, user_id, merchant_id, type, currency, balance, version, created_at, updated_at, handle FROM payment.accounts
+WHERE type = $1 AND user_id IS NULL AND merchant_id IS NULL
+`
+
+func (q *Queries) GetSystemAccountByType(ctx context.Context, type_ PaymentAccountType) (PaymentAccount, error) {
+	row := q.db.QueryRow(ctx, getSystemAccountByType, type_)
+	var i PaymentAccount
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.MerchantID,
+		&i.Type,
+		&i.Currency,
+		&i.Balance,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Handle,
+	)
+	return i, err
+}
+
 const getTotalBalanceByUser = `-- name: GetTotalBalanceByUser :one
 SELECT COALESCE(SUM(balance), 0)::bigint AS total
 FROM payment.accounts

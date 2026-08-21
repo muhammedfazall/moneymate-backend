@@ -8,9 +8,14 @@ services:
       - CONFIG_PATH=/app/config/config.yaml
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=5432
+      - POSTGRES_USER=${NOTIFICATION_DB_USER}
+      - POSTGRES_PASSWORD=${NOTIFICATION_DB_PASSWORD}
+      - REDIS_ADDR=redis:6379
       - ENVIRONMENT=${ENVIRONMENT}
       - FIREBASE_PROJECT_ID=money-mate2026
       - FIREBASE_CREDENTIALS_PATH=/app/config/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/app/config/firebase-service-account.json:ro
     expose:
       - "9095"
     ports:

@@ -377,6 +377,14 @@ type MerchantSubscription struct {
 	UpdatedAt          time.Time
 }
 
+type OutboxEvent struct {
+	ID          uuid.UUID
+	Topic       string
+	Payload     []byte
+	PublishedAt pgtype.Timestamptz
+	CreatedAt   time.Time
+}
+
 type QrTransaction struct {
 	ID                uuid.UUID
 	StoreID           uuid.UUID
@@ -421,7 +429,6 @@ type RewardTransaction struct {
 
 type Store struct {
 	ID                uuid.UUID
-	Role              string
 	OwnerName         string
 	ContactEmail      string
 	MobileNumber      string
@@ -439,6 +446,7 @@ type Store struct {
 	Plan              SubscriptionPlan
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	OwnerID           uuid.UUID
 }
 
 type SubscriptionTier struct {

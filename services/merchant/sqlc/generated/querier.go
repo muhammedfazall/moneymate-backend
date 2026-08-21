@@ -27,6 +27,7 @@ type Querier interface {
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (WalletTransaction, error)
 	// DeductRewardBalance atomically subtracts redeemed funds from the available balance if sufficient funds exist.
 	DeductRewardBalance(ctx context.Context, arg DeductRewardBalanceParams) error
+	FetchUnpublishedOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	GetCampaignByID(ctx context.Context, id uuid.UUID) (GetCampaignByIDRow, error)
 	GetCampaignsByStoreID(ctx context.Context, storeID uuid.UUID) ([]GetCampaignsByStoreIDRow, error)
 	GetEarningsStats(ctx context.Context, storeID uuid.UUID) (EarningsStat, error)
@@ -56,6 +57,8 @@ type Querier interface {
 	GetWalletTransactionsByType(ctx context.Context, arg GetWalletTransactionsByTypeParams) ([]WalletTransaction, error)
 	// InsertKYCDocuments inserts a new compliance documentation record during store onboarding or fallback initialization.
 	InsertKYCDocuments(ctx context.Context, arg InsertKYCDocumentsParams) (KycDocument, error)
+	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error
 	SubmitKYC(ctx context.Context, arg SubmitKYCParams) error
 	UpdateCampaignStatus(ctx context.Context, arg UpdateCampaignStatusParams) error
 	// UpdateKYCDocumentsByStoreID modifies existing compliance file URLs and resets verification standing to unverified.

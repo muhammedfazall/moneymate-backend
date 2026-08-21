@@ -37,7 +37,7 @@ func (r *AdminRepo) GetAllStores(ctx context.Context, limit, offset int) ([]*dom
 		SELECT 
 			id, owner_name, contact_email, mobile_number,
 			legal_name, COALESCE(dba_name, '') AS dba_name, business_type, COALESCE(tax_id, '') AS tax_id, registered_address,
-			display_id, status::text, plan::text, COALESCE(logo_url, '') AS logo_url, created_at, updated_at
+			display_id, COALESCE(vpa, '') AS vpa, status::text, plan::text, COALESCE(logo_url, '') AS logo_url, created_at, updated_at
 		FROM stores
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2;`
@@ -54,7 +54,7 @@ func (r *AdminRepo) GetAllStores(ctx context.Context, limit, offset int) ([]*dom
 		if err := rows.Scan(
 			&s.ID, &s.OwnerName, &s.ContactEmail, &s.MobileNumber,
 			&s.LegalName, &dba, &s.Type, &tax, &s.RegisteredAddress,
-			&s.DisplayID, &s.Status, &s.Plan, &s.LogoURL, &s.CreatedAt, &s.UpdatedAt,
+			&s.DisplayID, &s.VPA, &s.Status, &s.Plan, &s.LogoURL, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("GetAllStores scan failed: %w", err)
 		}

@@ -1,6 +1,6 @@
 -- name: CreateStore :one
 INSERT INTO stores (
-    id, role, owner_name, contact_email, mobile_number, 
+    id, owner_id, owner_name, contact_email, mobile_number, 
     legal_name, dba_name, business_type, tax_id, registered_address, display_id, vpa, qr_code_base64, password_hash
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
@@ -12,7 +12,7 @@ INSERT INTO kyc_documents (
 ) VALUES (
     $1, $2, $3, $4
 );
-
+    
 -- name: GetStoreByID :one
 SELECT 
     id, display_id, vpa, legal_name, status, plan 
@@ -21,7 +21,7 @@ WHERE id = $1 LIMIT 1;
 
 -- name: GetStoreByEmail :one
 SELECT 
-    id, display_id, vpa, legal_name, status, plan, password_hash, role
+    id, owner_id, display_id, vpa, legal_name, status, plan, password_hash
 FROM stores
 WHERE contact_email = $1 LIMIT 1;
 

@@ -1,0 +1,5 @@
+-- Irreversible: this down migration is a no-op.
+-- These tables represented a duplicate, non-authoritative balance/reward
+-- system that conflicted with the payment service's ledger. If ever
+-- needed again, they should be redesigned as read-only projections fed
+-- by payment service events, not recreated as standalone mutable state.

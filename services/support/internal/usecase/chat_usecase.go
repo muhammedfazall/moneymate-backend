@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"encoding/json"
-
 	"github.com/google/uuid"
 	"github.com/abijith/moneymate-backend/services/support/internal/domain"
 	"github.com/redis/go-redis/v9"

@@ -32,6 +32,7 @@ type Querier interface {
 	GetExternalSettlementAccount(ctx context.Context) (GetExternalSettlementAccountRow, error)
 	GetRewardPoolAccount(ctx context.Context) (GetRewardPoolAccountRow, error)
 	GetSpendByCategory(ctx context.Context, arg GetSpendByCategoryParams) ([]GetSpendByCategoryRow, error)
+	GetSystemAccountByType(ctx context.Context, type_ PaymentAccountType) (PaymentAccount, error)
 	GetTotalBalanceByUser(ctx context.Context, userID pgtype.UUID) (int64, error)
 	GetTransactionByID(ctx context.Context, id uuid.UUID) (GetTransactionByIDRow, error)
 	GetTransactionByIdempotencyKey(ctx context.Context, arg GetTransactionByIdempotencyKeyParams) (GetTransactionByIdempotencyKeyRow, error)

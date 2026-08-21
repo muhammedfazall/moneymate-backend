@@ -14,7 +14,7 @@ import (
 
 const getStoreProfileByStoreID = `-- name: GetStoreProfileByStoreID :one
 SELECT 
-    id, role, owner_name, contact_email, mobile_number,
+    id, owner_id, owner_name, contact_email, mobile_number,
     legal_name, COALESCE(dba_name, '') AS dba_name, business_type, COALESCE(tax_id, '') AS tax_id, registered_address,
     display_id, vpa, qr_code_base64, status::text, plan::text, COALESCE(logo_url, '') AS logo_url, created_at, updated_at
 FROM stores
@@ -24,7 +24,7 @@ LIMIT 1
 
 type GetStoreProfileByStoreIDRow struct {
 	ID                uuid.UUID
-	Role              string
+	OwnerID           uuid.UUID
 	OwnerName         string
 	ContactEmail      string
 	MobileNumber      string
@@ -49,7 +49,7 @@ func (q *Queries) GetStoreProfileByStoreID(ctx context.Context, storeID uuid.UUI
 	var i GetStoreProfileByStoreIDRow
 	err := row.Scan(
 		&i.ID,
-		&i.Role,
+		&i.OwnerID,
 		&i.OwnerName,
 		&i.ContactEmail,
 		&i.MobileNumber,
@@ -83,7 +83,7 @@ SET legal_name = COALESCE(NULLIF($1::text, ''), legal_name),
     logo_url = COALESCE(NULLIF($9::text, ''), logo_url),
     updated_at = NOW()
 WHERE id = $10
-RETURNING id, role, owner_name, contact_email, mobile_number,
+RETURNING id, owner_id, owner_name, contact_email, mobile_number,
     legal_name, COALESCE(dba_name, '') AS dba_name, business_type, COALESCE(tax_id, '') AS tax_id, registered_address,
     display_id, vpa, qr_code_base64, status::text, plan::text, COALESCE(logo_url, '') AS logo_url, created_at, updated_at
 `
@@ -103,7 +103,7 @@ type UpdateStoreProfileByStoreIDParams struct {
 
 type UpdateStoreProfileByStoreIDRow struct {
 	ID                uuid.UUID
-	Role              string
+	OwnerID           uuid.UUID
 	OwnerName         string
 	ContactEmail      string
 	MobileNumber      string
@@ -139,7 +139,7 @@ func (q *Queries) UpdateStoreProfileByStoreID(ctx context.Context, arg UpdateSto
 	var i UpdateStoreProfileByStoreIDRow
 	err := row.Scan(
 		&i.ID,
-		&i.Role,
+		&i.OwnerID,
 		&i.OwnerName,
 		&i.ContactEmail,
 		&i.MobileNumber,

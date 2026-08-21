@@ -1,7 +1,7 @@
 -- name: GetStoreProfileByStoreID :one
 -- GetStoreProfileByStoreID retrieves the complete merchant profile including contact info, business details, and logo.
 SELECT 
-    id, role, owner_name, contact_email, mobile_number,
+    id, owner_id, owner_name, contact_email, mobile_number,
     legal_name, COALESCE(dba_name, '') AS dba_name, business_type, COALESCE(tax_id, '') AS tax_id, registered_address,
     display_id, vpa, qr_code_base64, status::text, plan::text, COALESCE(logo_url, '') AS logo_url, created_at, updated_at
 FROM stores
@@ -24,7 +24,7 @@ SET legal_name = COALESCE(NULLIF(sqlc.arg('legal_name')::text, ''), legal_name),
     logo_url = COALESCE(NULLIF(sqlc.arg('logo_url')::text, ''), logo_url),
     updated_at = NOW()
 WHERE id = sqlc.arg('store_id')
-RETURNING id, role, owner_name, contact_email, mobile_number,
+RETURNING id, owner_id, owner_name, contact_email, mobile_number,
     legal_name, COALESCE(dba_name, '') AS dba_name, business_type, COALESCE(tax_id, '') AS tax_id, registered_address,
     display_id, vpa, qr_code_base64, status::text, plan::text, COALESCE(logo_url, '') AS logo_url, created_at, updated_at;
 
