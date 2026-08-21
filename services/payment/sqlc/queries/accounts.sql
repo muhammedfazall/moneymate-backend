@@ -64,3 +64,16 @@ INSERT INTO payment.accounts (type, currency)
 VALUES ('external_settlement', 'INR')
 RETURNING id, user_id, merchant_id, type::text AS type, currency,
           balance, version, handle, created_at, updated_at;
+
+-- name: GetRewardPoolAccount :one
+SELECT id, user_id, merchant_id, type::text AS type, currency,
+       balance, version, handle, created_at, updated_at
+FROM payment.accounts
+WHERE type = 'reward_pool'
+LIMIT 1;
+
+-- name: CreateRewardPoolAccount :one
+INSERT INTO payment.accounts (type, currency)
+VALUES ('reward_pool', 'INR')
+RETURNING id, user_id, merchant_id, type::text AS type, currency,
+          balance, version, handle, created_at, updated_at;

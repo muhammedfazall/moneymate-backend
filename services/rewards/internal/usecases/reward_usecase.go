@@ -133,7 +133,7 @@ func (uc *rewardUsecase) ProcessPaymentCompletedEvent(ctx context.Context, paylo
 		return fmt.Errorf("insert payout: %w", err)
 	}
 
-	paymentTxID, err := uc.paymentClient.ExecuteRewardPayout(ctx, event.RecipientAccountID, calc.RewardAmountPaise)
+	paymentTxID, err := uc.paymentClient.ExecuteRewardPayout(ctx, inserted.ID, event.RecipientAccountID, calc.RewardAmountPaise)
 	if err != nil {
 		_, _ = uc.repo.MarkFailed(ctx, inserted.ID, err.Error())
 		return fmt.Errorf("execute payout: %w", err)
@@ -170,7 +170,7 @@ func (uc *rewardUsecase) ReplayFailed(ctx context.Context) error {
 	}
 
 	for _, p := range payouts {
-		paymentTxID, err := uc.paymentClient.ExecuteRewardPayout(ctx, p.RecipientAccountID, p.RewardAmountPaise)
+		paymentTxID, err := uc.paymentClient.ExecuteRewardPayout(ctx, p.ID, p.RecipientAccountID, p.RewardAmountPaise)
 		if err != nil {
 			log.Printf("replay failed for payout %s: %v", p.ID, err)
 			continue

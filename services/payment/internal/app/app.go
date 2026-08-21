@@ -16,6 +16,7 @@ import (
 	authclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/authClient"
 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/postgres"
 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/postgres/repo"
+	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/infra/outboxpublisher"
 	transporthttp "github.com/moneymate-2026/moneymate-backend/services/payment/internal/transport/http"
 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/usecases"
 	sharedjwt "github.com/moneymate-2026/moneymate-backend/shared/pkg/jwt"
@@ -24,11 +25,13 @@ import (
 )
 
 type App struct {
-	HTTPServer    *fiber.App
-	DB            *pgxpool.Pool
-	HTTPAddr      string
-	KafkaConsumer *kafka.Consumer
-	WalletUC      usecases.WalletUsecase
+	HTTPServer      *fiber.App
+	DB              *pgxpool.Pool
+	HTTPAddr        string
+	KafkaConsumer   *kafka.Consumer
+	KafkaProducer   *kafka.Producer
+	OutboxPublisher *outboxpublisher.Publisher
+	WalletUC        usecases.WalletUsecase
 }
 
 func Build(cfg *config.Config) (*App, error) {
@@ -63,9 +66,14 @@ func Build(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("seed external settlement account: %w", err)
 	}
 
+	rewardPoolID, err := seedRewardPoolAccount(ctx, accountRepo)
+	if err != nil {
+		return nil, fmt.Errorf("seed reward pool account: %w", err)
+	}
+
 	razorpayClient := payment.NewRazorpayClient(cfg.Razorpay.KeyID, cfg.Razorpay.KeySecret)
 
-	walletUC := usecases.NewWalletUsecase(accountRepo)
+	walletUC := usecases.NewWalletUsecase(accountRepo, ledgerRepo, rewardPoolID)
 	transferUC := usecases.NewTransferUsecase(accountRepo, transactionRepo, ledgerRepo, categoryRepo)
 	depositUC := usecases.NewDepositUsecase(depositRepo, accountRepo, razorpayClient, cfg.Razorpay.KeyID, externalSettlementID)
 	withdrawalUC := usecases.NewWithdrawalUsecase(accountRepo, transactionRepo, ledgerRepo, externalSettlementID)
@@ -99,6 +107,18 @@ func Build(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("create kafka consumer: %w", err)
 	}
 
+	kafkaProducer, err := kafka.NewProducer(kafka.Config{
+		Brokers:  cfg.Kafka.Brokers,
+		Username: cfg.Kafka.Username,
+		Password: cfg.Kafka.Password,
+		CACert:   cfg.Kafka.CACert,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create kafka producer: %w", err)
+	}
+
+	outboxPublisher := outboxpublisher.New(repo.NewOutboxRepo(pool), kafkaProducer)
+
 	httpAddr := cfg.Server.HTTPAddr
 	if port := os.Getenv("PORT"); port != "" {
 		httpAddr = port
@@ -111,11 +131,13 @@ func Build(cfg *config.Config) (*App, error) {
 	}
 
 	return &App{
-		HTTPServer:    server,
-		DB:            pool,
-		HTTPAddr:      httpAddr,
-		KafkaConsumer: kafkaConsumer,
-		WalletUC:      walletUC,
+		HTTPServer:      server,
+		DB:              pool,
+		HTTPAddr:        httpAddr,
+		KafkaConsumer:   kafkaConsumer,
+		KafkaProducer:   kafkaProducer,
+		OutboxPublisher: outboxPublisher,
+		WalletUC:        walletUC,
 	}, nil
 }
 
@@ -150,5 +172,8 @@ func (a *App) Close() {
 	}
 	if a.KafkaConsumer != nil {
 		a.KafkaConsumer.Close()
+	}
+	if a.KafkaProducer != nil {
+		_ = a.KafkaProducer.Close()
 	}
 }

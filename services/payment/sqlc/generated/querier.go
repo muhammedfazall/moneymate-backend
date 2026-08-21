@@ -19,9 +19,10 @@ type Querier interface {
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (PaymentCategory, error)
 	CreateDeposit(ctx context.Context, arg CreateDepositParams) (PaymentDeposit, error)
 	CreateExternalSettlementAccount(ctx context.Context) (CreateExternalSettlementAccountRow, error)
-	CreateMerchantSettlementAccount(ctx context.Context, arg CreateMerchantSettlementAccountParams) (CreateMerchantSettlementAccountRow, error)
+	CreateRewardPoolAccount(ctx context.Context) (CreateRewardPoolAccountRow, error)
 	CreateWallet(ctx context.Context, arg CreateWalletParams) (CreateWalletRow, error)
 	DeleteCategory(ctx context.Context, arg DeleteCategoryParams) error
+	FetchUnpublishedOutboxEvents(ctx context.Context, limit int32) ([]PaymentOutboxEvent, error)
 	GetAccountByHandle(ctx context.Context, handle *string) (GetAccountByHandleRow, error)
 	GetAccountByID(ctx context.Context, id uuid.UUID) (GetAccountByIDRow, error)
 	GetAccountByIDForUpdate(ctx context.Context, id uuid.UUID) (GetAccountByIDForUpdateRow, error)
@@ -29,14 +30,14 @@ type Querier interface {
 	GetDepositByOrderID(ctx context.Context, razorpayOrderID string) (PaymentDeposit, error)
 	GetEntriesByTransactionID(ctx context.Context, transactionID uuid.UUID) ([]GetEntriesByTransactionIDRow, error)
 	GetExternalSettlementAccount(ctx context.Context) (GetExternalSettlementAccountRow, error)
-	GetMerchantSettlementAccount(ctx context.Context, merchantID pgtype.UUID) (GetMerchantSettlementAccountRow, error)
-	GetMerchantSettlementAccountForUpdate(ctx context.Context, merchantID pgtype.UUID) (GetMerchantSettlementAccountForUpdateRow, error)
+	GetRewardPoolAccount(ctx context.Context) (GetRewardPoolAccountRow, error)
 	GetSpendByCategory(ctx context.Context, arg GetSpendByCategoryParams) ([]GetSpendByCategoryRow, error)
 	GetTotalBalanceByUser(ctx context.Context, userID pgtype.UUID) (int64, error)
 	GetTransactionByID(ctx context.Context, id uuid.UUID) (GetTransactionByIDRow, error)
 	GetTransactionByIdempotencyKey(ctx context.Context, arg GetTransactionByIdempotencyKeyParams) (GetTransactionByIdempotencyKeyRow, error)
 	GetWalletByUserID(ctx context.Context, userID pgtype.UUID) (GetWalletByUserIDRow, error)
 	InsertJournalEntry(ctx context.Context, arg InsertJournalEntryParams) error
+	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
 	InsertTransaction(ctx context.Context, arg InsertTransactionParams) (InsertTransactionRow, error)
 	ListAccountsByUser(ctx context.Context, userID pgtype.UUID) ([]ListAccountsByUserRow, error)
 	ListCategoriesByUser(ctx context.Context, userID uuid.UUID) ([]PaymentCategory, error)
@@ -47,6 +48,7 @@ type Querier interface {
 	MarkDepositFailed(ctx context.Context, arg MarkDepositFailedParams) error
 	MarkDepositPaid(ctx context.Context, arg MarkDepositPaidParams) error
 	MarkDepositPaidIfCreated(ctx context.Context, arg MarkDepositPaidIfCreatedParams) (int64, error)
+	MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (PaymentCategory, error)
 	UpdateTransactionStatus(ctx context.Context, arg UpdateTransactionStatusParams) error
 }

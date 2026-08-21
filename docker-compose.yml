@@ -136,6 +136,7 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - REWARDS_DB_USER=${REWARDS_DB_USER}
       - REWARDS_DB_PASSWORD=${REWARDS_DB_PASSWORD}
+      - REWARDS_PAYMENT_SERVICE_URL=http://payment:9094
       - KAFKA_CA_CERT_PATH=/moneymate-backend/shared/certs/aiven-ca.pem
     ports:
       - "9096:9096"

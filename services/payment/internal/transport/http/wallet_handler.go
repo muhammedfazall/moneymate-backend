@@ -41,6 +41,40 @@ func (h *WalletHandler) CreateWalletInternal(c fiber.Ctx) error {
 	return response.Created(c, "wallet created", toWalletResponse(acc))
 }
 
+type creditRewardRequest struct {
+	PayoutID    string `json:"payout_id"`
+	AmountPaise int64  `json:"amount_paise" validate:"required,gt=0"`
+}
+
+// CreditReward is an internal endpoint used by the rewards service to pay
+// cashback into a user's wallet. Idempotent on payout_id.
+func (h *WalletHandler) CreditReward(c fiber.Ctx) error {
+	accountID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return response.BadRequest(c, nil, "invalid account id")
+	}
+	var req creditRewardRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.BadRequest(c, nil, "invalid request body")
+	}
+	if err := validate.Struct(req); err != nil {
+		return response.BadRequest(c, nil, "validation failed")
+	}
+	payoutID, err := uuid.Parse(req.PayoutID)
+	if err != nil {
+		return response.BadRequest(c, nil, "invalid payout id")
+	}
+
+	txID, err := h.wallets.CreditReward(c.Context(), accountID, payoutID, req.AmountPaise)
+	if err != nil {
+		return handleError(c, err)
+	}
+	return response.OK(c, "reward credited", fiber.Map{
+		"transaction_id": txID.String(),
+		"status":         "completed",
+	})
+}
+
 
 func (h *WalletHandler) GetMyWallet(c fiber.Ctx) error {
 	userID := userIDFromLocals(c)

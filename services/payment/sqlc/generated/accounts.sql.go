@@ -117,19 +117,14 @@ func (q *Queries) CreateExternalSettlementAccount(ctx context.Context) (CreateEx
 	return i, err
 }
 
-const createMerchantSettlementAccount = `-- name: CreateMerchantSettlementAccount :one
-INSERT INTO payment.accounts (merchant_id, type, currency)
-VALUES ($1, 'merchant_settlement', $2)
+const createRewardPoolAccount = `-- name: CreateRewardPoolAccount :one
+INSERT INTO payment.accounts (type, currency)
+VALUES ('reward_pool', 'INR')
 RETURNING id, user_id, merchant_id, type::text AS type, currency,
           balance, version, handle, created_at, updated_at
 `
 
-type CreateMerchantSettlementAccountParams struct {
-	MerchantID pgtype.UUID
-	Currency   string
-}
-
-type CreateMerchantSettlementAccountRow struct {
+type CreateRewardPoolAccountRow struct {
 	ID         uuid.UUID
 	UserID     pgtype.UUID
 	MerchantID pgtype.UUID
@@ -142,9 +137,9 @@ type CreateMerchantSettlementAccountRow struct {
 	UpdatedAt  time.Time
 }
 
-func (q *Queries) CreateMerchantSettlementAccount(ctx context.Context, arg CreateMerchantSettlementAccountParams) (CreateMerchantSettlementAccountRow, error) {
-	row := q.db.QueryRow(ctx, createMerchantSettlementAccount, arg.MerchantID, arg.Currency)
-	var i CreateMerchantSettlementAccountRow
+func (q *Queries) CreateRewardPoolAccount(ctx context.Context) (CreateRewardPoolAccountRow, error) {
+	row := q.db.QueryRow(ctx, createRewardPoolAccount)
+	var i CreateRewardPoolAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -358,14 +353,15 @@ func (q *Queries) GetExternalSettlementAccount(ctx context.Context) (GetExternal
 	return i, err
 }
 
-const getMerchantSettlementAccount = `-- name: GetMerchantSettlementAccount :one
+const getRewardPoolAccount = `-- name: GetRewardPoolAccount :one
 SELECT id, user_id, merchant_id, type::text AS type, currency,
        balance, version, handle, created_at, updated_at
 FROM payment.accounts
-WHERE merchant_id = $1 AND type = 'merchant_settlement'
+WHERE type = 'reward_pool'
+LIMIT 1
 `
 
-type GetMerchantSettlementAccountRow struct {
+type GetRewardPoolAccountRow struct {
 	ID         uuid.UUID
 	UserID     pgtype.UUID
 	MerchantID pgtype.UUID
@@ -378,48 +374,9 @@ type GetMerchantSettlementAccountRow struct {
 	UpdatedAt  time.Time
 }
 
-func (q *Queries) GetMerchantSettlementAccount(ctx context.Context, merchantID pgtype.UUID) (GetMerchantSettlementAccountRow, error) {
-	row := q.db.QueryRow(ctx, getMerchantSettlementAccount, merchantID)
-	var i GetMerchantSettlementAccountRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.MerchantID,
-		&i.Type,
-		&i.Currency,
-		&i.Balance,
-		&i.Version,
-		&i.Handle,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getMerchantSettlementAccountForUpdate = `-- name: GetMerchantSettlementAccountForUpdate :one
-SELECT id, user_id, merchant_id, type::text AS type, currency,
-       balance, version, handle, created_at, updated_at
-FROM payment.accounts
-WHERE merchant_id = $1 AND type = 'merchant_settlement'
-FOR UPDATE
-`
-
-type GetMerchantSettlementAccountForUpdateRow struct {
-	ID         uuid.UUID
-	UserID     pgtype.UUID
-	MerchantID pgtype.UUID
-	Type       string
-	Currency   string
-	Balance    int64
-	Version    int64
-	Handle     *string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-}
-
-func (q *Queries) GetMerchantSettlementAccountForUpdate(ctx context.Context, merchantID pgtype.UUID) (GetMerchantSettlementAccountForUpdateRow, error) {
-	row := q.db.QueryRow(ctx, getMerchantSettlementAccountForUpdate, merchantID)
-	var i GetMerchantSettlementAccountForUpdateRow
+func (q *Queries) GetRewardPoolAccount(ctx context.Context) (GetRewardPoolAccountRow, error) {
+	row := q.db.QueryRow(ctx, getRewardPoolAccount)
+	var i GetRewardPoolAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,

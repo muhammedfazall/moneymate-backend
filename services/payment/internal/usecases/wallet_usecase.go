@@ -17,16 +17,21 @@ type WalletUsecase interface {
 	GetByID(ctx context.Context, id string) (*domain.Account, error)
 	GetByHandle(ctx context.Context, handle string) (*domain.Account, error)
 	GetTotalBalance(ctx context.Context, userID string) (int64, error)
-	GetWalletWithTotal(ctx context.Context, userID string) (*WalletBalanceResponse, error) 
+	GetWalletWithTotal(ctx context.Context, userID string) (*WalletBalanceResponse, error)
 	ListAccounts(ctx context.Context, userID uuid.UUID) ([]*domain.Account, error)
+	// CreditReward credits a reward payout to a wallet account. Idempotent
+	// on payoutID. Returns the payment transaction ID.
+	CreditReward(ctx context.Context, accountID, payoutID uuid.UUID, amountPaise int64) (uuid.UUID, error)
 }
 
 type walletUsecase struct {
-	accounts domain.AccountRepository
+	accounts     domain.AccountRepository
+	ledger       domain.LedgerRepository
+	rewardPoolID uuid.UUID
 }
 
-func NewWalletUsecase(accounts domain.AccountRepository) WalletUsecase {
-	return &walletUsecase{accounts: accounts}
+func NewWalletUsecase(accounts domain.AccountRepository, ledger domain.LedgerRepository, rewardPoolID uuid.UUID) WalletUsecase {
+	return &walletUsecase{accounts: accounts, ledger: ledger, rewardPoolID: rewardPoolID}
 }
 func (u *walletUsecase) ListAccounts(ctx context.Context, userID uuid.UUID) ([]*domain.Account, error) {
 	return u.accounts.ListByUser(ctx, userID)
@@ -111,4 +116,18 @@ func (u *walletUsecase) GetTotalBalance(ctx context.Context, userID string) (int
 		return 0, apperrors.ErrInvalidInput
 	}
 	return u.accounts.GetTotalBalanceByUser(ctx, uid)
+}
+
+func (u *walletUsecase) CreditReward(ctx context.Context, accountID, payoutID uuid.UUID, amountPaise int64) (uuid.UUID, error) {
+	if accountID == uuid.Nil || payoutID == uuid.Nil {
+		return uuid.Nil, apperrors.ErrInvalidInput
+	}
+	acc, err := u.accounts.GetByID(ctx, accountID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get reward target account: %w", err)
+	}
+	if acc.Type != domain.AccountTypeWallet {
+		return uuid.Nil, apperrors.ErrInvalidInput
+	}
+	return u.ledger.ExecuteRewardCredit(ctx, u.rewardPoolID, accountID, payoutID, amountPaise)
 }

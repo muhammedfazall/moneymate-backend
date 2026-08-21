@@ -2,10 +2,13 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -24,6 +27,14 @@ func NewLedgerRepo(pool *pgxpool.Pool) *LedgerRepo {
 
 
 func (r *LedgerRepo) ExecuteTransfer(ctx context.Context, t *domain.Transaction) (*domain.LedgerResult, error) {
+	return r.executeTransfer(ctx, t, nil)
+}
+
+func (r *LedgerRepo) ExecuteTransferWithRewardEvent(ctx context.Context, t *domain.Transaction, evt *domain.PaymentCompletedEvent) (*domain.LedgerResult, error) {
+	return r.executeTransfer(ctx, t, evt)
+}
+
+func (r *LedgerRepo) executeTransfer(ctx context.Context, t *domain.Transaction, evt *domain.PaymentCompletedEvent) (*domain.LedgerResult, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin ledger tx: %w", err)
@@ -59,7 +70,11 @@ func (r *LedgerRepo) ExecuteTransfer(ctx context.Context, t *domain.Transaction)
 	}
 
 	now := time.Now().UTC()
-	txID := uuid.New()
+	txID := t.ID
+	if txID == uuid.Nil {
+		txID = uuid.New()
+		t.ID = txID
+	}
 
 inserted, err := q.InsertTransaction(ctx, generated.InsertTransactionParams{
 	ID:             txID,
@@ -104,6 +119,22 @@ inserted, err := q.InsertTransaction(ctx, generated.InsertTransactionParams{
 		return nil, mapDBErr(err)
 	}
 
+	// Queue the reward event in the SAME transaction — it is published
+	// if and only if this commit succeeds.
+	if evt != nil {
+		payload, err := json.Marshal(evt)
+		if err != nil {
+			return nil, fmt.Errorf("marshal reward event: %w", err)
+		}
+		if err := q.InsertOutboxEvent(ctx, generated.InsertOutboxEventParams{
+			ID:      evt.EventID,
+			Topic:   domain.RewardPaymentCompletedTopic,
+			Payload: payload,
+		}); err != nil {
+			return nil, mapDBErr(err)
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit ledger tx: %w", err)
 	}
@@ -122,6 +153,92 @@ inserted, err := q.InsertTransaction(ctx, generated.InsertTransactionParams{
 func (r *LedgerRepo) getAccount(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	return NewAccountRepo(r.pool).GetByID(ctx, id)
 }
+
+// ExecuteRewardCredit moves reward money from the pool account to a wallet.
+// Idempotent on payoutID: replays return the original transaction without
+// touching balances again.
+func (r *LedgerRepo) ExecuteRewardCredit(ctx context.Context, poolAccountID, walletAccountID, payoutID uuid.UUID, amount int64) (uuid.UUID, error) {
+	if amount <= 0 {
+		return uuid.Nil, apperrors.ErrInvalidInput
+	}
+	if poolAccountID == walletAccountID {
+		return uuid.Nil, apperrors.ErrInvalidInput
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("begin reward credit tx: %w", err)
+	}
+	defer tx.Rollback(ctx) // no-op if already committed
+
+	q := generated.New(tx)
+
+	existing, err := q.GetTransactionByIdempotencyKey(ctx, generated.GetTransactionByIdempotencyKeyParams{
+		IdempotencyKey: payoutID.String(),
+		FromAccountID:  poolAccountID,
+	})
+	if err == nil {
+		return existing.ID, nil // already credited — idempotent replay
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, mapDBErr(err)
+	}
+
+	if _, err := q.GetAccountByIDForUpdate(ctx, walletAccountID); err != nil {
+		return uuid.Nil, mapDBErr(err)
+	}
+
+	now := time.Now().UTC()
+	txID := uuid.New()
+	desc := "reward payout"
+	inserted, err := q.InsertTransaction(ctx, generated.InsertTransactionParams{
+		ID:             txID,
+		FromAccountID:  poolAccountID,
+		ToAccountID:    walletAccountID,
+		Amount:         amount,
+		Column5:        generated.PaymentTxStatus(domain.TxStatusCompleted),
+		IdempotencyKey: payoutID.String(),
+		Description:    &desc,
+		CategoryID:     pgtype.UUID{},
+		CompletedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		return uuid.Nil, mapDBErr(err)
+	}
+
+	if err := q.InsertJournalEntry(ctx, generated.InsertJournalEntryParams{
+		ID:            uuid.New(),
+		TransactionID: txID,
+		AccountID:     poolAccountID,
+		Amount:        amount,
+		Column5:       generated.PaymentTxDirectionDebit,
+	}); err != nil {
+		return uuid.Nil, mapDBErr(err)
+	}
+	if err := q.InsertJournalEntry(ctx, generated.InsertJournalEntryParams{
+		ID:            uuid.New(),
+		TransactionID: txID,
+		AccountID:     walletAccountID,
+		Amount:        amount,
+		Column5:       generated.PaymentTxDirectionCredit,
+	}); err != nil {
+		return uuid.Nil, mapDBErr(err)
+	}
+
+	if err := q.AddBalance(ctx, generated.AddBalanceParams{ID: poolAccountID, Balance: -amount}); err != nil {
+		return uuid.Nil, mapDBErr(err)
+	}
+	if err := q.AddBalance(ctx, generated.AddBalanceParams{ID: walletAccountID, Balance: amount}); err != nil {
+		return uuid.Nil, mapDBErr(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return uuid.Nil, fmt.Errorf("commit reward credit tx: %w", err)
+	}
+
+	return inserted.ID, nil
+}
+
 func categoryIDToPgtype(id *uuid.UUID) pgtype.UUID {
 	if id == nil {
 		return pgtype.UUID{}

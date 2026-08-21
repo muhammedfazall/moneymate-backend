@@ -31,6 +31,8 @@ func main() {
 		return kafkaconsumer.HandleUserRegistered(ctx, paymentApp.WalletUC, payload)
 	}) // NEW — starts the Kafka consumer loop
 
+	go paymentApp.OutboxPublisher.Run(ctx) // relays queued events to Kafka
+
 	go func() {
 		if err := paymentApp.Run(); err != nil {
 			log.Fatalf("App run failed: %v", err)

@@ -136,6 +136,22 @@ func (r *AccountRepo) CreateExternalSettlementAccount(ctx context.Context) (*dom
 	return rowToAccount(generated.GetAccountByIDRow(row)), nil
 }
 
+func (r *AccountRepo) GetRewardPoolAccount(ctx context.Context) (*domain.Account, error) {
+	row, err := r.q.GetRewardPoolAccount(ctx)
+	if err != nil {
+		return nil, mapDBErr(err)
+	}
+	return rowToAccount(generated.GetAccountByIDRow(row)), nil
+}
+
+func (r *AccountRepo) CreateRewardPoolAccount(ctx context.Context) (*domain.Account, error) {
+	row, err := r.q.CreateRewardPoolAccount(ctx)
+	if err != nil {
+		return nil, mapDBErr(err)
+	}
+	return rowToAccount(generated.GetAccountByIDRow(row)), nil
+}
+
 func mapDBErr(err error) error {
 	if err == nil {
 		return nil

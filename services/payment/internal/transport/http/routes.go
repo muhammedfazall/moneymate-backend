@@ -29,4 +29,5 @@ func RegisterRoutes(router fiber.Router, wh *WalletHandler, th *TransferHandler,
 
 	internal := router.Group("/internal", RequireInternalSecret(internalSecret))
 	internal.Post("/payment/wallets", wh.CreateWalletInternal)
+	internal.Post("/payment/wallets/:id/credit-reward", wh.CreditReward)
 }

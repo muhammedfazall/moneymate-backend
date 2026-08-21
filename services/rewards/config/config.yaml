@@ -17,3 +17,4 @@ rewards:
   payment_completed_topic: "moneymate.payment.completed"
   consumer_group: "moneymate-rewards-svc"
   fake_payment_client: true
+  payment_service_url: "http://localhost:9094"

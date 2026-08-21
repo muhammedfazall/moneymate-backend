@@ -17,6 +17,7 @@ type RewardsConfig struct {
 	PaymentCompletedTopic string `mapstructure:"payment_completed_topic"`
 	ConsumerGroup         string `mapstructure:"consumer_group"`
 	FakePaymentClient     bool   `mapstructure:"fake_payment_client"`
+	PaymentServiceURL     string `mapstructure:"payment_service_url"`
 }
 
 type Config struct {
@@ -57,6 +58,7 @@ func LoadConfig() (*Config, error) {
 	cfg.JWT = sharedconfig.LoadJWTConfig(v)
 	cfg.Env = sharedconfig.Get("ENVIRONMENT", "dev")
 	cfg.InternalServiceSecret = sharedconfig.MustGet("INTERNAL_SERVICE_SECRET")
+	cfg.Rewards.PaymentServiceURL = sharedconfig.Get("REWARDS_PAYMENT_SERVICE_URL", cfg.Rewards.PaymentServiceURL)
 
 	return &cfg, nil
 }

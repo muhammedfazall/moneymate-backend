@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -102,7 +103,9 @@ func (u *transferUsecase) Transfer(ctx context.Context, in TransferInput) (*doma
 		categoryID = &cid
 	}
 
-	result, err := u.ledger.ExecuteTransfer(ctx, &domain.Transaction{
+	txID := uuid.New()
+	result, err := u.ledger.ExecuteTransferWithRewardEvent(ctx, &domain.Transaction{
+		ID:             txID,
 		FromAccountID:  fromID,
 		ToAccountID:    toID,
 		Amount:         in.AmountPaise,
@@ -110,6 +113,15 @@ func (u *transferUsecase) Transfer(ctx context.Context, in TransferInput) (*doma
 		IdempotencyKey: key,
 		Description:    in.Description,
 		CategoryID:     categoryID,
+	}, &domain.PaymentCompletedEvent{
+		EventID:            uuid.New(),
+		EventType:          domain.RewardPaymentCompletedTopic,
+		TransactionID:      txID,
+		RecipientID:        authUserID, // the payer earns the cashback
+		RecipientAccountID: fromID,     // credited back to the payer's wallet
+		RecipientType:      "user",
+		AmountPaise:        in.AmountPaise,
+		OccurredAt:         time.Now().UTC(),
 	})
 	if err != nil {
 		if errors.Is(err, apperrors.ErrIdempotencyKeyUsed) {

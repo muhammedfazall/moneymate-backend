@@ -42,4 +42,6 @@ type AccountRepository interface {
 	AddBalance(ctx context.Context, id uuid.UUID, amount int64) error
 	CreateExternalSettlementAccount(ctx context.Context) (*Account, error)
  	GetExternalSettlementAccount(ctx context.Context) (*Account, error)
+	CreateRewardPoolAccount(ctx context.Context) (*Account, error)
+	GetRewardPoolAccount(ctx context.Context) (*Account, error)
 }

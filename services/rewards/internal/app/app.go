@@ -57,6 +57,11 @@ func Build(cfg *config.Config) (*App, error) {
 	var paymentClient domain.PaymentClient
 	if cfg.Rewards.FakePaymentClient {
 		paymentClient = paymentclient.NewFakeClient()
+	} else {
+		if cfg.Rewards.PaymentServiceURL == "" {
+			return nil, fmt.Errorf("rewards.payment_service_url must be set when fake_payment_client is false")
+		}
+		paymentClient = paymentclient.NewHTTPClient(cfg.Rewards.PaymentServiceURL, cfg.InternalServiceSecret)
 	}
 
 	rewardUC := usecases.NewRewardUsecase(rewardRepo, paymentClient)

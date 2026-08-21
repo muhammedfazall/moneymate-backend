@@ -22,6 +22,7 @@ const (
 	PaymentAccountTypeMerchantPayout         PaymentAccountType = "merchant_payout"
 	PaymentAccountTypePlatformCommissionPool PaymentAccountType = "platform_commission_pool"
 	PaymentAccountTypeExternalSettlement     PaymentAccountType = "external_settlement"
+	PaymentAccountTypeRewardPool             PaymentAccountType = "reward_pool"
 )
 
 func (e *PaymentAccountType) Scan(src interface{}) error {
@@ -228,6 +229,14 @@ type PaymentJournalEntry struct {
 	Amount        int64
 	Direction     PaymentTxDirection
 	CreatedAt     time.Time
+}
+
+type PaymentOutboxEvent struct {
+	ID          uuid.UUID
+	Topic       string
+	Payload     []byte
+	CreatedAt   time.Time
+	PublishedAt pgtype.Timestamptz
 }
 
 type PaymentTransaction struct {
