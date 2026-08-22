@@ -1,4 +1,6 @@
 -- Rewards service integration: transactional outbox + reward pool account.
+-- NOTE: the singleton index lives in 000011 — Postgres forbids using an enum
+-- value in the same transaction that adds it (error 55P04).
 
 ALTER TYPE payment.account_type ADD VALUE IF NOT EXISTS 'reward_pool';
 
@@ -13,7 +15,3 @@ CREATE TABLE IF NOT EXISTS payment.outbox_events (
 CREATE INDEX IF NOT EXISTS idx_payment_outbox_unpublished
     ON payment.outbox_events (created_at)
     WHERE published_at IS NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_reward_pool_singleton
-ON payment.accounts ((type))
-WHERE type = 'reward_pool';
